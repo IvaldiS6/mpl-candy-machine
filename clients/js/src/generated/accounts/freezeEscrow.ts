@@ -22,6 +22,7 @@ import {
   mapSerializer,
 } from '@metaplex-foundation/umi';
 
+/** PDA to store the frozen funds. */
 export type FreezeEscrow = Account<FreezeEscrowAccountData>;
 
 export type FreezeEscrowAccountData = {
@@ -85,7 +86,7 @@ export function getFreezeEscrowAccountDataSerializer(
   const s = context.serializer;
   return mapSerializer<
     FreezeEscrowAccountDataArgs,
-    FreezeEscrowAccountData,
+    any,
     FreezeEscrowAccountData
   >(
     s.struct<FreezeEscrowAccountData>(
@@ -99,13 +100,12 @@ export function getFreezeEscrowAccountDataSerializer(
         ['destination', s.publicKey()],
         ['authority', s.publicKey()],
       ],
-      { description: 'FreezeEscrow' }
+      { description: 'FreezeEscrowAccountData' }
     ),
-    (value) =>
-      ({
-        ...value,
-        discriminator: [100, 4, 61, 102, 0, 123, 141, 187],
-      } as FreezeEscrowAccountData)
+    (value) => ({
+      ...value,
+      discriminator: [100, 4, 61, 102, 0, 123, 141, 187],
+    })
   ) as Serializer<FreezeEscrowAccountDataArgs, FreezeEscrowAccountData>;
 }
 
@@ -221,4 +221,28 @@ export function findFreezeEscrowPda(
     s.publicKey().serialize(seeds.candyGuard),
     s.publicKey().serialize(seeds.candyMachine),
   ]);
+}
+
+export async function fetchFreezeEscrowFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findFreezeEscrowPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<FreezeEscrow> {
+  return fetchFreezeEscrow(
+    context,
+    findFreezeEscrowPda(context, seeds),
+    options
+  );
+}
+
+export async function safeFetchFreezeEscrowFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findFreezeEscrowPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<FreezeEscrow | null> {
+  return safeFetchFreezeEscrow(
+    context,
+    findFreezeEscrowPda(context, seeds),
+    options
+  );
 }

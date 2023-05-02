@@ -20,6 +20,7 @@ import {
   gpaBuilder,
 } from '@metaplex-foundation/umi';
 
+/** PDA to track the number of mints for an individual address. */
 export type MintCounter = Account<MintCounterAccountData>;
 
 export type MintCounterAccountData = { count: number };
@@ -31,7 +32,7 @@ export function getMintCounterAccountDataSerializer(
 ): Serializer<MintCounterAccountDataArgs, MintCounterAccountData> {
   const s = context.serializer;
   return s.struct<MintCounterAccountData>([['count', s.u16()]], {
-    description: 'MintCounter',
+    description: 'MintCounterAccountData',
   }) as Serializer<MintCounterAccountDataArgs, MintCounterAccountData>;
 }
 
@@ -136,4 +137,24 @@ export function findMintCounterPda(
     s.publicKey().serialize(seeds.candyGuard),
     s.publicKey().serialize(seeds.candyMachine),
   ]);
+}
+
+export async function fetchMintCounterFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findMintCounterPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<MintCounter> {
+  return fetchMintCounter(context, findMintCounterPda(context, seeds), options);
+}
+
+export async function safeFetchMintCounterFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findMintCounterPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<MintCounter | null> {
+  return safeFetchMintCounter(
+    context,
+    findMintCounterPda(context, seeds),
+    options
+  );
 }
