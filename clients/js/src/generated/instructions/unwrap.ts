@@ -13,10 +13,10 @@ import {
   Serializer,
   Signer,
   TransactionBuilder,
-  checkForIsWritableOverride as isWritable,
   mapSerializer,
   transactionBuilder,
 } from '@metaplex-foundation/umi';
+import { addObjectProperty, isWritable } from '../shared';
 
 // Accounts.
 export type UnwrapInstructionAccounts = {
@@ -27,7 +27,7 @@ export type UnwrapInstructionAccounts = {
   candyMachineProgram?: PublicKey;
 };
 
-// Arguments.
+// Data.
 export type UnwrapInstructionData = { discriminator: Array<number> };
 
 export type UnwrapInstructionDataArgs = {};
@@ -36,20 +36,15 @@ export function getUnwrapInstructionDataSerializer(
   context: Pick<Context, 'serializer'>
 ): Serializer<UnwrapInstructionDataArgs, UnwrapInstructionData> {
   const s = context.serializer;
-  return mapSerializer<
-    UnwrapInstructionDataArgs,
-    UnwrapInstructionData,
-    UnwrapInstructionData
-  >(
+  return mapSerializer<UnwrapInstructionDataArgs, any, UnwrapInstructionData>(
     s.struct<UnwrapInstructionData>(
       [['discriminator', s.array(s.u8(), { size: 8 })]],
       { description: 'UnwrapInstructionData' }
     ),
-    (value) =>
-      ({
-        ...value,
-        discriminator: [126, 175, 198, 14, 212, 69, 50, 44],
-      } as UnwrapInstructionData)
+    (value) => ({
+      ...value,
+      discriminator: [126, 175, 198, 14, 212, 69, 50, 44],
+    })
   ) as Serializer<UnwrapInstructionDataArgs, UnwrapInstructionData>;
 }
 
@@ -62,60 +57,74 @@ export function unwrap(
   const keys: AccountMeta[] = [];
 
   // Program ID.
-  const programId = context.programs.getPublicKey(
-    'mplCandyGuard',
-    'Guard1JwRhJkVH6XZhzoYxeBVQe872VH6QggF4BWmS9g'
-  );
-
-  // Resolved accounts.
-  const candyGuardAccount = input.candyGuard;
-  const authorityAccount = input.authority ?? context.identity;
-  const candyMachineAccount = input.candyMachine;
-  const candyMachineAuthorityAccount =
-    input.candyMachineAuthority ?? context.identity;
-  const candyMachineProgramAccount = input.candyMachineProgram ?? {
+  const programId = {
     ...context.programs.getPublicKey(
-      'mplCandyMachine',
-      'CndyV3LdqHUfDLmE5naZjVN8rBZz4tqhdefbAnjHG3JR'
+      'mplCandyGuard',
+      'Guard1JwRhJkVH6XZhzoYxeBVQe872VH6QggF4BWmS9g'
     ),
     isWritable: false,
   };
 
+  // Resolved inputs.
+  const resolvingAccounts = {};
+  addObjectProperty(
+    resolvingAccounts,
+    'authority',
+    input.authority ?? context.identity
+  );
+  addObjectProperty(
+    resolvingAccounts,
+    'candyMachineAuthority',
+    input.candyMachineAuthority ?? context.identity
+  );
+  addObjectProperty(
+    resolvingAccounts,
+    'candyMachineProgram',
+    input.candyMachineProgram ?? {
+      ...context.programs.getPublicKey(
+        'mplCandyMachine',
+        'CndyV3LdqHUfDLmE5naZjVN8rBZz4tqhdefbAnjHG3JR'
+      ),
+      isWritable: false,
+    }
+  );
+  const resolvedAccounts = { ...input, ...resolvingAccounts };
+
   // Candy Guard.
   keys.push({
-    pubkey: candyGuardAccount,
+    pubkey: resolvedAccounts.candyGuard,
     isSigner: false,
-    isWritable: isWritable(candyGuardAccount, false),
+    isWritable: isWritable(resolvedAccounts.candyGuard, false),
   });
 
   // Authority.
-  signers.push(authorityAccount);
+  signers.push(resolvedAccounts.authority);
   keys.push({
-    pubkey: authorityAccount.publicKey,
+    pubkey: resolvedAccounts.authority.publicKey,
     isSigner: true,
-    isWritable: isWritable(authorityAccount, false),
+    isWritable: isWritable(resolvedAccounts.authority, false),
   });
 
   // Candy Machine.
   keys.push({
-    pubkey: candyMachineAccount,
+    pubkey: resolvedAccounts.candyMachine,
     isSigner: false,
-    isWritable: isWritable(candyMachineAccount, true),
+    isWritable: isWritable(resolvedAccounts.candyMachine, true),
   });
 
   // Candy Machine Authority.
-  signers.push(candyMachineAuthorityAccount);
+  signers.push(resolvedAccounts.candyMachineAuthority);
   keys.push({
-    pubkey: candyMachineAuthorityAccount.publicKey,
+    pubkey: resolvedAccounts.candyMachineAuthority.publicKey,
     isSigner: true,
-    isWritable: isWritable(candyMachineAuthorityAccount, false),
+    isWritable: isWritable(resolvedAccounts.candyMachineAuthority, false),
   });
 
   // Candy Machine Program.
   keys.push({
-    pubkey: candyMachineProgramAccount,
+    pubkey: resolvedAccounts.candyMachineProgram,
     isSigner: false,
-    isWritable: isWritable(candyMachineProgramAccount, false),
+    isWritable: isWritable(resolvedAccounts.candyMachineProgram, false),
   });
 
   // Data.

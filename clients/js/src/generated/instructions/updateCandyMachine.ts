@@ -13,10 +13,10 @@ import {
   Serializer,
   Signer,
   TransactionBuilder,
-  checkForIsWritableOverride as isWritable,
   mapSerializer,
   transactionBuilder,
 } from '@metaplex-foundation/umi';
+import { addObjectProperty, isWritable } from '../shared';
 import {
   CandyMachineData,
   CandyMachineDataArgs,
@@ -29,7 +29,7 @@ export type UpdateCandyMachineInstructionAccounts = {
   authority?: Signer;
 };
 
-// Arguments.
+// Data.
 export type UpdateCandyMachineInstructionData = {
   discriminator: Array<number>;
   data: CandyMachineData;
@@ -48,7 +48,7 @@ export function getUpdateCandyMachineInstructionDataSerializer(
   const s = context.serializer;
   return mapSerializer<
     UpdateCandyMachineInstructionDataArgs,
-    UpdateCandyMachineInstructionData,
+    any,
     UpdateCandyMachineInstructionData
   >(
     s.struct<UpdateCandyMachineInstructionData>(
@@ -58,54 +58,69 @@ export function getUpdateCandyMachineInstructionDataSerializer(
       ],
       { description: 'UpdateCandyMachineInstructionData' }
     ),
-    (value) =>
-      ({
-        ...value,
-        discriminator: [219, 200, 88, 176, 158, 63, 253, 127],
-      } as UpdateCandyMachineInstructionData)
+    (value) => ({
+      ...value,
+      discriminator: [219, 200, 88, 176, 158, 63, 253, 127],
+    })
   ) as Serializer<
     UpdateCandyMachineInstructionDataArgs,
     UpdateCandyMachineInstructionData
   >;
 }
 
+// Args.
+export type UpdateCandyMachineInstructionArgs =
+  UpdateCandyMachineInstructionDataArgs;
+
 // Instruction.
 export function updateCandyMachine(
   context: Pick<Context, 'serializer' | 'programs' | 'identity'>,
   input: UpdateCandyMachineInstructionAccounts &
-    UpdateCandyMachineInstructionDataArgs
+    UpdateCandyMachineInstructionArgs
 ): TransactionBuilder {
   const signers: Signer[] = [];
   const keys: AccountMeta[] = [];
 
   // Program ID.
-  const programId = context.programs.getPublicKey(
-    'mplCandyMachineCore',
-    'CndyV3LdqHUfDLmE5naZjVN8rBZz4tqhdefbAnjHG3JR'
-  );
+  const programId = {
+    ...context.programs.getPublicKey(
+      'mplCandyMachineCore',
+      'CndyV3LdqHUfDLmE5naZjVN8rBZz4tqhdefbAnjHG3JR'
+    ),
+    isWritable: false,
+  };
 
-  // Resolved accounts.
-  const candyMachineAccount = input.candyMachine;
-  const authorityAccount = input.authority ?? context.identity;
+  // Resolved inputs.
+  const resolvingAccounts = {};
+  const resolvingArgs = {};
+  addObjectProperty(
+    resolvingAccounts,
+    'authority',
+    input.authority ?? context.identity
+  );
+  const resolvedAccounts = { ...input, ...resolvingAccounts };
+  const resolvedArgs = { ...input, ...resolvingArgs };
 
   // Candy Machine.
   keys.push({
-    pubkey: candyMachineAccount,
+    pubkey: resolvedAccounts.candyMachine,
     isSigner: false,
-    isWritable: isWritable(candyMachineAccount, true),
+    isWritable: isWritable(resolvedAccounts.candyMachine, true),
   });
 
   // Authority.
-  signers.push(authorityAccount);
+  signers.push(resolvedAccounts.authority);
   keys.push({
-    pubkey: authorityAccount.publicKey,
+    pubkey: resolvedAccounts.authority.publicKey,
     isSigner: true,
-    isWritable: isWritable(authorityAccount, false),
+    isWritable: isWritable(resolvedAccounts.authority, false),
   });
 
   // Data.
   const data =
-    getUpdateCandyMachineInstructionDataSerializer(context).serialize(input);
+    getUpdateCandyMachineInstructionDataSerializer(context).serialize(
+      resolvedArgs
+    );
 
   // Bytes Created On Chain.
   const bytesCreatedOnChain = 0;

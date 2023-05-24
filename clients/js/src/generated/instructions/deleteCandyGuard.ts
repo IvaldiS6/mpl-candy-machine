@@ -13,10 +13,10 @@ import {
   Serializer,
   Signer,
   TransactionBuilder,
-  checkForIsWritableOverride as isWritable,
   mapSerializer,
   transactionBuilder,
 } from '@metaplex-foundation/umi';
+import { addObjectProperty, isWritable } from '../shared';
 
 // Accounts.
 export type DeleteCandyGuardInstructionAccounts = {
@@ -24,7 +24,7 @@ export type DeleteCandyGuardInstructionAccounts = {
   authority?: Signer;
 };
 
-// Arguments.
+// Data.
 export type DeleteCandyGuardInstructionData = { discriminator: Array<number> };
 
 export type DeleteCandyGuardInstructionDataArgs = {};
@@ -38,18 +38,17 @@ export function getDeleteCandyGuardInstructionDataSerializer(
   const s = context.serializer;
   return mapSerializer<
     DeleteCandyGuardInstructionDataArgs,
-    DeleteCandyGuardInstructionData,
+    any,
     DeleteCandyGuardInstructionData
   >(
     s.struct<DeleteCandyGuardInstructionData>(
       [['discriminator', s.array(s.u8(), { size: 8 })]],
       { description: 'DeleteCandyGuardInstructionData' }
     ),
-    (value) =>
-      ({
-        ...value,
-        discriminator: [183, 18, 70, 156, 148, 109, 161, 34],
-      } as DeleteCandyGuardInstructionData)
+    (value) => ({
+      ...value,
+      discriminator: [183, 18, 70, 156, 148, 109, 161, 34],
+    })
   ) as Serializer<
     DeleteCandyGuardInstructionDataArgs,
     DeleteCandyGuardInstructionData
@@ -65,28 +64,36 @@ export function deleteCandyGuard(
   const keys: AccountMeta[] = [];
 
   // Program ID.
-  const programId = context.programs.getPublicKey(
-    'mplCandyGuard',
-    'Guard1JwRhJkVH6XZhzoYxeBVQe872VH6QggF4BWmS9g'
-  );
+  const programId = {
+    ...context.programs.getPublicKey(
+      'mplCandyGuard',
+      'Guard1JwRhJkVH6XZhzoYxeBVQe872VH6QggF4BWmS9g'
+    ),
+    isWritable: false,
+  };
 
-  // Resolved accounts.
-  const candyGuardAccount = input.candyGuard;
-  const authorityAccount = input.authority ?? context.identity;
+  // Resolved inputs.
+  const resolvingAccounts = {};
+  addObjectProperty(
+    resolvingAccounts,
+    'authority',
+    input.authority ?? context.identity
+  );
+  const resolvedAccounts = { ...input, ...resolvingAccounts };
 
   // Candy Guard.
   keys.push({
-    pubkey: candyGuardAccount,
+    pubkey: resolvedAccounts.candyGuard,
     isSigner: false,
-    isWritable: isWritable(candyGuardAccount, true),
+    isWritable: isWritable(resolvedAccounts.candyGuard, true),
   });
 
   // Authority.
-  signers.push(authorityAccount);
+  signers.push(resolvedAccounts.authority);
   keys.push({
-    pubkey: authorityAccount.publicKey,
+    pubkey: resolvedAccounts.authority.publicKey,
     isSigner: true,
-    isWritable: isWritable(authorityAccount, true),
+    isWritable: isWritable(resolvedAccounts.authority, true),
   });
 
   // Data.

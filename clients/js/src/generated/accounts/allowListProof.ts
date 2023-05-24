@@ -20,6 +20,7 @@ import {
   gpaBuilder,
 } from '@metaplex-foundation/umi';
 
+/** PDA to track whether an address has been validated or not. */
 export type AllowListProof = Account<AllowListProofAccountData>;
 
 export type AllowListProofAccountData = { timestamp: bigint };
@@ -31,7 +32,7 @@ export function getAllowListProofAccountDataSerializer(
 ): Serializer<AllowListProofAccountDataArgs, AllowListProofAccountData> {
   const s = context.serializer;
   return s.struct<AllowListProofAccountData>([['timestamp', s.i64()]], {
-    description: 'AllowListProof',
+    description: 'AllowListProofAccountData',
   }) as Serializer<AllowListProofAccountDataArgs, AllowListProofAccountData>;
 }
 
@@ -136,4 +137,28 @@ export function findAllowListProofPda(
     s.publicKey().serialize(seeds.candyGuard),
     s.publicKey().serialize(seeds.candyMachine),
   ]);
+}
+
+export async function fetchAllowListProofFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findAllowListProofPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<AllowListProof> {
+  return fetchAllowListProof(
+    context,
+    findAllowListProofPda(context, seeds),
+    options
+  );
+}
+
+export async function safeFetchAllowListProofFromSeeds(
+  context: Pick<Context, 'eddsa' | 'programs' | 'rpc' | 'serializer'>,
+  seeds: Parameters<typeof findAllowListProofPda>[1],
+  options?: RpcGetAccountOptions
+): Promise<AllowListProof | null> {
+  return safeFetchAllowListProof(
+    context,
+    findAllowListProofPda(context, seeds),
+    options
+  );
 }
