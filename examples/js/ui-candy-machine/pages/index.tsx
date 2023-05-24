@@ -7,19 +7,22 @@ import {
   PublicKey,
   publicKey,
   some,
-  transactionBuilder
+  transactionBuilder,
+  assertAccountExists,
+  lamports,
+  amountToNumber
 } from "@metaplex-foundation/umi";
-import { createNft, fetchDigitalAsset, TokenStandard } from "@metaplex-foundation/mpl-token-metadata";
+import { createNft, fetchAllDigitalAssetWithTokenByOwner, fetchDigitalAsset, TokenStandard } from "@metaplex-foundation/mpl-token-metadata";
 import { Inter } from "@next/font/google";
 import { useWallet } from "@solana/wallet-adapter-react";
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import { FormEvent, useState } from "react";
 import { useUmi } from "./useUmi";
-import { fetchCandyMachine, mintV2, safeFetchCandyGuard, DefaultGuardSetMintArgs } from "@metaplex-foundation/mpl-candy-machine"
-import { setComputeUnitLimit } from '@metaplex-foundation/mpl-essentials';
-
+import { fetchCandyMachine, mintV2, safeFetchCandyGuard, DefaultGuardSetMintArgs, findMintCounterPda } from "@metaplex-foundation/mpl-candy-machine"
+import { fetchTokensByOwner, setComputeUnitLimit } from '@metaplex-foundation/mpl-essentials';
 import styles from "@/styles/Home.module.css";
+import { guardChecker } from "@/utils/checkAllowed";
 const inter = Inter({ subsets: ["latin"] });
 
 const WalletMultiButtonDynamic = dynamic(
@@ -28,37 +31,6 @@ const WalletMultiButtonDynamic = dynamic(
   { ssr: false }
 );
 
-async function uploadAndCreateNft(umi: Umi, name: string, file: File) {
-  // Ensure input is valid.
-  if (!name) {
-    throw new Error("Please enter a name for your NFT.");
-  }
-  if (!file || file.size === 0) {
-    throw new Error("Please select an image for your NFT.");
-  }
-
-  // Upload image and JSON data.
-  const imageFile = await createGenericFileFromBrowserFile(file);
-  const [imageUri] = await umi.uploader.upload([imageFile]);
-  const uri = await umi.uploader.uploadJson({
-    name,
-    description: "A test NFT created via Umi.",
-    image: imageUri,
-  });
-
-  // Create and mint NFT.
-  const mint = generateSigner(umi);
-  const sellerFeeBasisPoints = percentAmount(5.5, 2);
-  await createNft(umi, {
-    mint,
-    name,
-    uri,
-    sellerFeeBasisPoints,
-  }).sendAndConfirm(umi);
-
-  // Return the mint address.
-  return mint.publicKey;
-}
 
 export default function Home() {
   const wallet = useWallet();
@@ -70,17 +42,36 @@ export default function Home() {
     event.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(event.target as HTMLFormElement);
-    const data = Object.fromEntries(formData) as { name: string; image: File };
 
     try {
       const candyMachine = await fetchCandyMachine(umi, publicKey("8jnnVbL9DCV5Sd1atyP84Du6Re22QjDCswwNd94n9XmG"))
-
       const candyGuard = await safeFetchCandyGuard(umi, candyMachine.mintAuthority)
+
+      if (!candyGuard){return}
+      if (!guardChecker(umi, candyGuard, candyMachine)){
+
+      }
+      const account = await umi.rpc.getAccount(umi.identity.publicKey);
+      assertAccountExists(account)
+      console.log(amountToNumber(account.lamports))
+      const tokens = await fetchTokensByOwner(umi, umi.identity.publicKey);
+      console.log(tokens)
+      const mintLimitCounter = findMintCounterPda(umi, {
+        id: 1,
+        user: umi.identity.publicKey,
+        candyMachine: publicKey("8jnnVbL9DCV5Sd1atyP84Du6Re22QjDCswwNd94n9XmG"),
+        candyGuard: publicKey("8jnnVbL9DCV5Sd1atyP84Du6Re22QjDCswwNd94n9XmG")
+      })
+      
+
+      const digitalAssets = await fetchAllDigitalAssetWithTokenByOwner(umi,umi.identity.publicKey)
+      console.log(digitalAssets)
+
+      
 
       const nftSigner = generateSigner(umi);
       const mintArgs: Partial<DefaultGuardSetMintArgs> = {
-        mintLimit: some({ id: 2 })
+        mintLimit: some({ id: 2 }),
       }
 
       const tx = transactionBuilder()
@@ -93,7 +84,7 @@ export default function Home() {
           mintArgs: mintArgs,
           tokenStandard: TokenStandard.ProgrammableNonFungible
         }))
-
+      const txArray = [tx]
 
       const { signature } = await tx.sendAndConfirm(umi, {
         confirm: { commitment: "finalized" }, send: {
