@@ -37,7 +37,7 @@ import {
   ownedNftChecker,
   GuardReturn,
 } from "./checkerHelper";
-import { allowLists } from "./../allowlist";
+import { allowLists } from "../allowlist";
 import {
   DigitalAssetWithToken,
   fetchAllDigitalAssetWithTokenByOwner,
